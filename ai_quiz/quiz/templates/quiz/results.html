@@ -1,0 +1,15 @@
+{% extends 'quiz/base.html' %}
+{% block content %}
+<h3>Your Score: {{ score }}/10</h3>
+<ul class="list-group">
+  {% for ans in answers %}
+    <li class="list-group-item">
+      <strong>Question {{ forloop.counter }}:</strong> 
+      <img src="{{ ans.question.image.url }}" height="50"/>
+      Your Answer: {{ ans.answer }} | Correct: {{ ans.is_correct }}<br>
+      Explanation: {{ ans.question.explanation }}
+    </li>
+  {% endfor %}
+</ul>
+<a href="{% url 'leaderboard' %}" class="btn btn-secondary mt-3">Leaderboard</a>
+{% endblock %}

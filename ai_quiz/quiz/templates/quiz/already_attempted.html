@@ -1,0 +1,8 @@
+{% extends 'quiz/base.html' %}
+
+{% block content %}
+<div class="alert alert-warning">
+  <h4>You’ve already taken the quiz!</h4>
+  <p>You can view your score on the <a href="{% url 'leaderboard' %}">Leaderboard</a>.</p>
+</div>
+{% endblock %}
