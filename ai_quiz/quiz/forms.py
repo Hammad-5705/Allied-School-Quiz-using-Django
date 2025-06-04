@@ -1,7 +1,10 @@
 from django import forms
 
 class AnswerForm(forms.Form):
-    answer = forms.ChoiceField(
-        choices=[(True, 'Yes (AI)'), (False, 'No (Not AI)')],
-        widget=forms.RadioSelect
+    answer = forms.TypedChoiceField(
+        label="Is this image AI-generated?",
+        choices=[(True, "Yes"), (False, "No")],
+        coerce=lambda x: x == 'True',
+        widget=forms.RadioSelect,
+        required=True
     )

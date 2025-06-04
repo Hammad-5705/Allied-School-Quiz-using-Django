@@ -6,27 +6,24 @@ from django.contrib.auth.models import User
 from django.contrib.auth.decorators import user_passes_test
 from django import forms
 from django.shortcuts import render, redirect, get_object_or_404
-
-
-
-
+import random
+import os
+from django.conf import settings
+import urllib.request
+from urllib.error import URLError
 
 @login_required
 def start_quiz(request):
-    # If student already took quiz, show result
     if Score.objects.filter(user=request.user).exists():
         return redirect('results')
 
-    # AI-based question generation if no existing questions
     if Question.objects.count() < 10:
-        generate_ai_questions()  # we'll write this next
+        generate_ai_questions()
 
-    # Pick 10 questions at random
     questions = Question.objects.all().order_by('?')[:10]
     request.session['quiz_ids'] = [q.id for q in questions]
     request.session['user_answers'] = {}
     return redirect('question', index=0)
-
 
 
 @login_required
@@ -35,39 +32,63 @@ def question_view(request, index):
     user_answers = request.session.get('user_answers', {})
 
     if index >= len(quiz_ids):
-        return redirect('results')  # all questions answered
+        return redirect('results')
 
     question = get_object_or_404(Question, id=quiz_ids[index])
 
     if request.method == 'POST':
-        user_answers[str(index)] = request.POST.get('answer')
-        request.session['user_answers'] = user_answers
-
-        # go to next question
-        return redirect('question', index=index+1)
+        form = AnswerForm(request.POST)
+        if form.is_valid():
+            answer = form.cleaned_data['answer']
+            user_answers[str(question.id)] = answer  # Store by question ID
+            request.session['user_answers'] = user_answers
+            
+            is_correct = (answer == question.is_ai)
+            StudentAnswer.objects.create(
+                user=request.user,
+                question=question,
+                answer=answer,
+                is_correct=is_correct
+            )
+            
+            # Redirect to next question or results
+            next_index = index + 1
+            if next_index < len(quiz_ids):
+                return redirect('question', index=next_index)
+            return redirect('results')
+    else:
+        form = AnswerForm()
 
     return render(request, 'quiz/question.html', {
         'question': question,
-        'index': index
+        'index': index,
+        'form': form,
+        'total_questions': len(quiz_ids),
+        'image_url': question.image.url if question.image else ''
     })
 
 @login_required
 def results_view(request):
     answers = StudentAnswer.objects.filter(user=request.user).order_by('-id')[:10]
     score = sum(a.is_correct for a in answers)
-    Score.objects.create(user=request.user, score=score)
-    return render(request, 'quiz/results.html', {'answers': answers, 'score': score})
+    
+    if Score.objects.filter(user=request.user).exists():
+        score_obj = Score.objects.get(user=request.user)
+        score_obj.score = score
+        score_obj.save()
+    else:
+        Score.objects.create(user=request.user, score=score)
+    
+    return render(request, 'quiz/results.html', {
+        'answers': answers,
+        'score': score,
+    })
 
 @login_required
 def leaderboard(request):
     scores = Score.objects.order_by('-score')
     return render(request, 'quiz/leaderboard.html', {'scores': scores})
 
-
-
-
-
-# Form for creating student accounts
 class StudentCreationForm(forms.ModelForm):
     password = forms.CharField(widget=forms.PasswordInput)
 
@@ -75,7 +96,6 @@ class StudentCreationForm(forms.ModelForm):
         model = User
         fields = ['username', 'email', 'password']
 
-# Only superusers can access
 @user_passes_test(lambda u: u.is_superuser)
 def create_student(request):
     if request.method == 'POST':
@@ -86,47 +106,81 @@ def create_student(request):
             user.is_staff = False
             user.is_superuser = False
             user.save()
-            return redirect('leaderboard')  # or any page you prefer
+            return redirect('leaderboard')
     else:
         form = StudentCreationForm()
     return render(request, 'quiz/create_student.html', {'form': form})
 
+import requests
+from django.core.files.base import ContentFile
+from PIL import Image
+import io
 
-import random
-from .models import Question
+import requests
+from io import BytesIO
+from django.core.files import File
+from PIL import Image
 import os
 from django.conf import settings
-import urllib.request
 
 def generate_ai_questions():
-    if Question.objects.exists():
-        return
-
-    # Sample tech-themed images (mix of AI and real)
-    sample_data = [
-        ("https://generated.photos/vue-static/home/face-generator/landing/hero/1.jpg", True),
-        ("https://images.unsplash.com/photo-1581093588401-9c01c4f0922d", False),
-        ("https://image.pollinations.ai/prompt/AI%20generated%20drone%20city%20view", True),
-        ("https://images.unsplash.com/photo-1581091215367-59e2a6f4db8c", False),
-        ("https://image.pollinations.ai/prompt/AI%20generated%20robot%20factory", True),
-        ("https://images.unsplash.com/photo-1581091870622-8f6e5c0fa93e", False),
-        ("https://image.pollinations.ai/prompt/Futuristic%20cyberpunk%20server%20room", True),
-        ("https://images.unsplash.com/photo-1573166364081-c411b1923bdb", False),
-        ("https://image.pollinations.ai/prompt/AI%20generated%20smartphone%20chipset", True),
-        ("https://images.unsplash.com/photo-1581092334557-e42e26b81007", False),
-    ]
-
-    media_path = os.path.join(settings.MEDIA_ROOT, 'questions')
+    # Clear existing questions
+    Question.objects.all().delete()
+    
+    # Create media directory if it doesn't exist
+    media_path = os.path.join(settings.MEDIA_ROOT, 'question_images')
     os.makedirs(media_path, exist_ok=True)
 
-    for i, (url, is_ai) in enumerate(sample_data):
-        filename = f"tech_question_{i}.jpg"
-        local_path = os.path.join('questions', filename)
-        full_path = os.path.join(settings.MEDIA_ROOT, local_path)
+    # Create a default image
+    default_img_path = os.path.join(media_path, 'default.jpg')
+    if not os.path.exists(default_img_path):
+        img = Image.new('RGB', (600, 400), color='gray')
+        img.save(default_img_path)
 
+    # Updated question data with more reliable sources
+    questions = [
+        # AI-generated images
+        ("https://thispersondoesnotexist.com", True, "AI-generated face with perfect symmetry"),
+        ("https://image.pollinations.ai/prompt/robot", True, "AI robot with unrealistic features"),
+        ("https://image.pollinations.ai/prompt/futuristic%20city", True, "AI city with repetitive patterns"),
+        ("https://image.pollinations.ai/prompt/cyberpunk%20character", True, "AI character with unnatural lighting"),
+        ("https://image.pollinations.ai/prompt/digital%20art", True, "AI art with perfect textures"),
+        
+        # Real images - using different sources
+        ("https://picsum.photos/600/400?random=1", False, "Real portrait with natural imperfections"),
+        ("https://picsum.photos/600/400?random=2", False, "Real city photo with natural lighting"),
+        ("https://picsum.photos/600/400?random=3", False, "Real tech photo with authentic details"),
+        ("https://picsum.photos/600/400?random=4", False, "Real office environment"),
+        ("https://picsum.photos/600/400?random=5", False, "Real nature scene")
+    ]
+
+    for i, (url, is_ai, explanation) in enumerate(questions):
         try:
-            urllib.request.urlretrieve(url, full_path)
-        except:
-            continue
-
-        Question.objects.create(image=local_path, is_ai=is_ai)
+            response = requests.get(url, stream=True, timeout=10)
+            response.raise_for_status()
+            
+            img = Image.open(BytesIO(response.content))
+            img.verify()
+            img = Image.open(BytesIO(response.content))
+            
+            filename = f"question_{i}.jpg"
+            filepath = os.path.join(media_path, filename)
+            
+            # Convert to RGB if needed (some PNGs might have alpha channel)
+            if img.mode in ('RGBA', 'LA'):
+                img = img.convert('RGB')
+            
+            img.save(filepath, format='JPEG', quality=85)
+            
+            Question.objects.create(
+                image=f"question_images/{filename}",
+                is_ai=is_ai,
+                explanation=explanation
+            )
+        except Exception as e:
+            print(f"Error with {url}: {e}")
+            Question.objects.create(
+                image="question_images/default.jpg",
+                is_ai=is_ai,
+                explanation=explanation
+            )

@@ -1,17 +1,23 @@
-{% extends 'quiz/base.html' %}
+{% extends 'base.html' %}
+
 {% block content %}
-<h3>Question {{ index|add:1 }}/10</h3>
-<img src="{{ question.image.url }}" class="img-fluid rounded shadow mb-3" width="300" alt="Question Image">
-<form method="post">{% csrf_token %}
-  <div class="form-check">
-    <input class="form-check-input" type="radio" name="answer" value="yes" id="yes" required>
-    <label class="form-check-label" for="yes">Yes – AI-generated</label>
-  </div>
-  <div class="form-check">
-    <input class="form-check-input" type="radio" name="answer" value="no" id="no">
-    <label class="form-check-label" for="no">No – Real Image</label>
-  </div>
-  <br>
-  <button type="submit" class="btn btn-primary">Next</button>
+
+<h2>Question {{ index|add:1 }}/{{ total_questions }}</h2>
+
+<p>{{ question.text }}</p>
+
+
+
+{% if question.image %}
+    <img src="{{ question.image.url }}" alt="Question Image" style="max-width: 300px; height: auto;">
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-primary">
+        {% if index|add:1 == total_questions %}Finish{% else %}Next{% endif %}
+    </button>
 </form>
+
 {% endblock %}

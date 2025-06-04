@@ -1,15 +1,21 @@
-{% extends 'quiz/base.html' %}
+{% extends 'base.html' %}
+
 {% block content %}
-<h3>Your Score: {{ score }}/10</h3>
-<ul class="list-group">
-  {% for ans in answers %}
-    <li class="list-group-item">
-      <strong>Question {{ forloop.counter }}:</strong> 
-      <img src="{{ ans.question.image.url }}" height="50"/>
-      Your Answer: {{ ans.answer }} | Correct: {{ ans.is_correct }}<br>
-      Explanation: {{ ans.question.explanation }}
-    </li>
-  {% endfor %}
-</ul>
-<a href="{% url 'leaderboard' %}" class="btn btn-secondary mt-3">Leaderboard</a>
+<h1>Your Score: {{ score }}/10</h1>
+
+{% for answer in answers %}
+    <div class="result-item">
+        <h3>Question {{ forloop.counter }}:</h3>
+        {% if answer.question.image %}
+            <img src="{{ answer.question.image.url }}" alt="Question Image" style="max-width: 300px; height: auto;">
+        {% endif %}
+        <p>Your Answer: {{ answer.answer|yesno:"AI,Real" }} | 
+           Correct: {{ answer.question.is_ai|yesno:"AI,Real" }} | 
+           {% if answer.is_correct %}✅ Correct{% else %}❌ Incorrect{% endif %}</p>
+        <p><strong>Explanation:</strong> {{ answer.question.explanation }}</p>
+        <hr>
+    </div>
+{% endfor %}
+
+<a href="{% url 'leaderboard' %}" class="btn btn-secondary">View Leaderboard</a>
 {% endblock %}
