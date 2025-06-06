@@ -12,7 +12,22 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'unsafe-default-key')
 DEBUG = False
 
 # Allow only your Railway domain
-ALLOWED_HOSTS = ['allied-school-quiz-using-django-production.up.railway.app']
+import os
+
+ALLOWED_HOSTS = [
+    'allied-school-quiz-using-django-production.up.railway.app',
+    '.railway.app',
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://allied-school-quiz-using-django-production.up.railway.app",
+]
+
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
 
 # Application definition
 INSTALLED_APPS = [
@@ -58,8 +73,12 @@ WSGI_APPLICATION = 'ai_quiz.wsgi.application'
 
 # PostgreSQL configuration (via Railway DATABASE_URL env variable)
 DATABASES = {
-    'default': dj_database_url.config(default='sqlite:///db.sqlite3', conn_max_age=600)
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
 }
+
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
