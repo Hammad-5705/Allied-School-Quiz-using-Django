@@ -17,15 +17,16 @@ def start_quiz(request):
     if Score.objects.filter(user=request.user).exists():
         return redirect('results')
 
-        if Question.objects.count() < 10:
-        # generate_ai_questions()  # DISABLE THIS IN PRODUCTION
-            pass
+    # This should NOT be indented under the previous if
+    # and should NOT call generate_ai_questions in production!
+    # if Question.objects.count() < 10:
+    #     generate_ai_questions()
+    #     pass
 
     questions = Question.objects.all().order_by('?')[:10]
     request.session['quiz_ids'] = [q.id for q in questions]
     request.session['user_answers'] = {}
     return redirect('question', index=0)
-
 
 @login_required
 def question_view(request, index):
