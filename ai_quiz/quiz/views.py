@@ -17,8 +17,9 @@ def start_quiz(request):
     if Score.objects.filter(user=request.user).exists():
         return redirect('results')
 
-    if Question.objects.count() < 10:
-        generate_ai_questions()
+        if Question.objects.count() < 10:
+        # generate_ai_questions()  # DISABLE THIS IN PRODUCTION
+            pass
 
     questions = Question.objects.all().order_by('?')[:10]
     request.session['quiz_ids'] = [q.id for q in questions]

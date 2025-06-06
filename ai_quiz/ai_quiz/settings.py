@@ -2,6 +2,8 @@ from pathlib import Path
 import os
 import dj_database_url
 
+
+
 # Base directory
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -9,7 +11,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'unsafe-default-key')
 
 # Set to False for production
-DEBUG = False
+DEBUG = True
 
 # Allow only your Railway domain
 import os
@@ -72,11 +74,9 @@ TEMPLATES = [
 WSGI_APPLICATION = 'ai_quiz.wsgi.application'
 
 # PostgreSQL configuration (via Railway DATABASE_URL env variable)
+import dj_database_url
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(default='sqlite:///db.sqlite3')
 }
 
 
