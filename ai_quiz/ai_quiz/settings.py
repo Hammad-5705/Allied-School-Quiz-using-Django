@@ -77,7 +77,7 @@ WSGI_APPLICATION = 'ai_quiz.wsgi.application'
 # PostgreSQL configuration (via Railway DATABASE_URL env variable)
 import dj_database_url
 DATABASES = {
-    'default': dj_database_url.config(default='sqlite:///db.sqlite3')
+    'default': dj_database_url.config(default=f'sqlite:///{BASE_DIR}/db.sqlite3')
 }
 
 
