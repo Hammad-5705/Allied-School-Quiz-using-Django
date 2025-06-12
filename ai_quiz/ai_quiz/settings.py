@@ -19,6 +19,7 @@ import os
 ALLOWED_HOSTS = [
     'allied-school-quiz-using-django-production.up.railway.app',
     '.railway.app',
+    '127.0.0.1',
 ]
 
 CSRF_TRUSTED_ORIGINS = [
